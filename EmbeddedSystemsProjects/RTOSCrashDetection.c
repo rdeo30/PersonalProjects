@@ -46,9 +46,8 @@ const float CRASH_G       = 2.5f;
 // 0.5g = ~30 deg tilt, 0.7g = ~45 deg tilt
 const float FORWARD_TILT_G = 0.2f; 
 
-// ---------------- Shared state + RTOS primitives ----------------
-static float desiredSpeed = 0.0f;  // 0..100 (%)
-static float currentSpeed = 0.0f;  // 0..100 (%)
+static float desiredSpeed = 0.0f;  
+static float currentSpeed = 0.0f;  
 static bool  crashLatched = false;
 
 // Shared IMU data (for display)
@@ -379,3 +378,4 @@ void loop() {
   }
   vTaskDelay(pdMS_TO_TICKS(50));
 }
+
