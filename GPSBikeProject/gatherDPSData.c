@@ -7,7 +7,7 @@
 
 #include <Arduino.h>
 
-// ----- uLCD Includes -----
+//
 #define DisplaySerial Serial1
 #include "Goldelox_Serial_4DLib.h"
 #include "Goldelox_Const4D.h"
@@ -146,3 +146,4 @@ void loop()
     }
   }
 }
+
