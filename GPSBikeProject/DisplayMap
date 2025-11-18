@@ -1,0 +1,228 @@
+/*
+ * @author Rajan Deo
+ */
+
+#define DisplaySerial Serial1
+#include "Goldelox_Serial_4DLib.h"
+#include "Goldelox_Const4D.h"
+#include <SPI.h>
+#include <SD.h>
+
+//Display UART pins
+#define DISPLAY_RX 17
+#define DISPLAY_TX 16
+#define RESETLINE 2
+
+//SD Card SPI pins
+#define SD_CS 7      // Chip Select
+#define SD_MOSI 5    // Data Out
+#define SD_MISO 4    // Data In
+#define SD_SCK 6    // Clock
+
+//Create display object
+Goldelox_Serial_4DLib Display(&DisplaySerial);
+
+//Image buffer (for reading in chunks)
+#define CHUNK_SIZE 256
+uint8_t imageBuffer[CHUNK_SIZE];
+
+void setup() {
+  Serial.begin(115200);
+  delay(2000);
+  
+  //Initialize Display
+  if (!initDisplay()) {
+    Serial.println("Display initialization failed!");
+    while(1);
+  }
+  
+  //Initialize SD Card
+  if (!initSDCard()) {
+    Serial.println("SD Card initialization failed!");
+    displayError("SD Card Error!");
+    while(1);
+  }
+  
+  //Load and display the map
+  displayMapFromSD();
+}
+
+bool initDisplay() {
+  Serial.println("[1] Initializing Display...");
+  
+  //Reset display
+  pinMode(RESETLINE, OUTPUT);
+  digitalWrite(RESETLINE, HIGH);
+  delay(500);
+  digitalWrite(RESETLINE, LOW);
+  delay(500);
+  digitalWrite(RESETLINE, HIGH);
+  delay(7000);
+  
+  //Initialize serial
+  DisplaySerial.begin(9600, SERIAL_8N1, DISPLAY_RX, DISPLAY_TX);
+  Display.TimeLimit4D = 5000;
+  
+  //Clear screen
+  Display.gfx_Cls();
+  delay(100);
+  
+  Serial.println("Display ready\n");
+  return true;
+}
+
+bool initSDCard() {
+  Serial.println("[2] Initializing SD Card...");
+  
+  //Configure SPI pins
+  SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+  
+  // Initialize SD card
+  if (!SD.begin(SD_CS)) {
+    Serial.println("SD Card mount failed!");
+    return false;
+  }
+  
+  uint8_t cardType = SD.cardType();
+  if (cardType == CARD_NONE) {
+    Serial.println("No SD card attached");
+    return false;
+  }
+  
+  Serial.print("SD Card Type: ");
+  if (cardType == CARD_MMC) {
+    Serial.println("MMC");
+  } else if (cardType == CARD_SD) {
+    Serial.println("SDSC");
+  } else if (cardType == CARD_SDHC) {
+    Serial.println("SDHC");
+  } else {
+    Serial.println("UNKNOWN");
+  }
+  
+  uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+  Serial.printf("SD Card Size: %lluMB\n", cardSize);
+  
+  // List files on SD card
+  File root = SD.open("/");
+  Serial.println("Files on SD card:");
+  while (true) {
+    File entry = root.openNextFile();
+    if (!entry) {
+      break;
+    }
+    entry.close();
+  }
+  root.close();
+  
+  Serial.println("SD Card ready\n");
+  return true;
+}
+
+void displayMapFromSD() {
+  Serial.println("[3] Loading Atlanta map...");
+  
+  //load RAW format first
+  if (loadRAWImage("/ATLANTA.RAW")) {
+    Serial.println("Map displayed successfully!");
+    return;
+  }
+  
+}
+
+bool loadRAWImage(const char* filename) {
+  File imageFile = SD.open(filename);
+  if (!imageFile) {
+    Serial.print("    Cannot open ");
+    Serial.println(filename);
+    return false;
+  }
+  
+  Serial.print("Loading...");
+  Serial.print(filename);
+  Serial.print(" (");
+  Serial.print(imageFile.size());
+  Serial.println(" bytes)");
+  
+  //Clear screen first
+  Display.gfx_Cls();
+  
+  //For RAW RGB565 format (128x128 pixels = 32768 bytes)
+  if (imageFile.size() == 32768) {
+    Serial.println("RGB565 format (128x128)");
+    
+    //Display loading message
+    displayString(3, 5, "Loading map...", WHITE);
+    delay(500);
+    Display.gfx_Cls();
+    
+    //Read and display pixel by pixel
+    for (int y = 0; y < 128; y++) {
+      for (int x = 0; x < 128; x++) {
+        //Read 2 bytes for RGB565
+        uint8_t highByte = imageFile.read();
+        uint8_t lowByte = imageFile.read();
+        
+        if (highByte == -1 || lowByte == -1) {
+          Serial.println("Unexpected end of file!");
+          imageFile.close();
+          return false;
+        }
+        
+        //Combine bytes to get RGB565 color
+        uint16_t color = (highByte << 8) | lowByte;
+        
+        //Plot pixel
+        Display.gfx_PutPixel(x, y, color);
+      }
+      
+      //Loading screen for progresss debug
+      if (y % 16 == 0) {
+        Serial.print("    Progress: ");
+        Serial.print((y * 100) / 128);
+        Serial.println("%");
+      }
+    }
+  } else {
+    Serial.println("Invalid file size for 128x128 RGB565 image");
+    imageFile.close();
+    return false;
+  }
+  
+  imageFile.close();
+  
+  //Add text overlay
+  Display.txt_FGcolour(YELLOW);
+  Display.txt_BGcolour(BLACK);
+  Display.txt_MoveCursor(0, 0);
+  displayString(0, 0, "Midtown ATL", YELLOW);
+  
+  return true;
+}
+
+void displayString(int col, int row, String text, word color) {
+  Display.txt_FGcolour(color);
+  Display.txt_BGcolour(BLACK);
+  Display.txt_MoveCursor(row, col);
+  
+  for (int i = 0; i < text.length(); i++) {
+    Display.putCH(text[i]);
+  }
+}
+
+//helper method for displaying a string
+void displayError(String message) {
+  Display.gfx_Cls();
+  Display.txt_FGcolour(RED);
+  Display.txt_BGcolour(BLACK);
+  Display.txt_MoveCursor(5, 2);
+  
+  for (int i = 0; i < message.length(); i++) {
+    Display.putCH(message[i]);
+  }
+}
+
+void loop() {
+  //Map stays on screen
+  delay(1000);
+}
