@@ -39,7 +39,7 @@ void loop() {
   currTouched = cap.touched();
   
   //Check each of the 12 electrodes
-  for (uint8_t i = 0; i < 12; i++) {
+  for (int i = 0; i < 12; i++) {
     //Check if electrode is currently touched
     if ((currTouched & (1 << i)) && !(lastTouched & (1 << i))) {
       //New touch detected (wasn't touched before, is touched now)
@@ -54,3 +54,4 @@ void loop() {
   //Small delay for debouncing
   delay(50);
 }
+
