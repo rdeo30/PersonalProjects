@@ -8,6 +8,10 @@
  */
 
 //sim_stats_t stats;
+
+int c;
+int b;
+int s;
     
 int numOffsetBits;
 int numIndexBits;
@@ -45,6 +49,9 @@ void sim_setup(sim_config_t *config) {
     cacheTimer = 0;
     //memset(&stats, 0, sizeof(sim_stats_t));
 
+    s = config->l1_config.s;
+    b = config->l1_config.b;
+
     numOffsetBits = config->l1_config.b;
 
     numIndexBits = config->l1_config.c - config->l1_config.b - config->l1_config.s;
@@ -68,6 +75,7 @@ void sim_setup(sim_config_t *config) {
         //[numOfSets(0->7)][numOfWays(0->2)]
         for (int j = 0; j < numOfWays; j++) {
             cache[i][j].valid = 0;
+            cache[i][j].dirty = 0;
             cache[i][j].tag = 0;
             cache[i][j].lruPosition = 0;
         }
@@ -106,6 +114,8 @@ void sim_access(char rw, uint64_t addr, sim_stats_t* stats) {
 
     //if we searched and couldn't find a valid and matching tag, consider the fact we missed:
     stats->misses_l1++;
+    stats->reads_l2++;
+    stats->read_misses_l2++;
     //Check invalid bits first? maybe cold start cache and cache is filled with garbage that can be written over
     for(int i = 0; i < numOfWays; i++) {
         if(cache[addressIndex][i].valid != 1) {
@@ -135,6 +145,7 @@ void sim_access(char rw, uint64_t addr, sim_stats_t* stats) {
 
     if(cache[addressIndex][wayToRemove].dirty == 1) {
         stats->write_backs_l1++;
+        stats->writes_l2++;
         //handle write to l2 here later possibly
     }
 
@@ -160,10 +171,25 @@ void sim_access(char rw, uint64_t addr, sim_stats_t* stats) {
  */
 void sim_finish(sim_stats_t *stats) {
 
+    double hitTime_l1 = L1_HIT_TIME_CONST + (L1_HIT_TIME_PER_S * s);
+    double hitTime_l2 = 0; //disabled L2 cache
+
     stats->hit_ratio_l1 = (double) (stats->hits_l1) / (double) (stats->accesses_l1);
     stats->miss_ratio_l1 = (double) (stats->misses_l1) / (double) (stats->accesses_l1);
 
+    stats->read_miss_ratio_l2 = 1.0;
+    stats->read_hit_ratio_l2 = 0.0;
+
+    double bytesPerBlock = (1) << b;
+
+    //DRAM_TIME = DRAM_AT + (DRAM_AT_PER_WORD × WORDS_PER_BLOCK)
+    double dramAccessTime = DRAM_AT + (DRAM_AT_PER_WORD * (bytesPerBlock / WORD_SIZE));
+
     //AAT = HT + (MR * MP)
-    
+
+    stats->avg_access_time_l1 = hitTime_l1 + ((stats->miss_ratio_l1) * dramAccessTime);
+
+    stats->avg_access_time_l2 = hitTime_l2 + (stats->read_miss_ratio_l2 * dramAccessTime);
+
 
 }
