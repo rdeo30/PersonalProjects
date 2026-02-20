@@ -254,6 +254,7 @@ void sim_access(char rw, uint64_t addr, sim_stats_t* stats) {
             if(replacementPolicy_l2 == REPLACEMENT_POLICY_LIP) {
                 l2_lru[addressIndex_l2].push_back(l2wayToEvict);
                 for(int i = 0; i < numOfWays_l2; i++) {
+                    //push back invalid ways even though this wau was the least recently used
                     if(!cache_l2[addressIndex_l2][i].valid) {
                         l2_lru[addressIndex_l2].remove(i);
                         l2_lru[addressIndex_l2].push_back(i);
@@ -291,17 +292,18 @@ void sim_access(char rw, uint64_t addr, sim_stats_t* stats) {
                     }
 
                     if(!l2Present) {
+                        //if there were no duplicate pre fetches found in L1 or L2, then we must issue a prefetch in l2
                         stats->prefetches_issued_l2++;
 
                         int preFetchWayToRemove = -1;
-
+                        //remove invalid (coldstart ways) first
                         for(int i = 0; i < numOfWays_l2; i++) {
                             if(!cache_l2[preFetchL2Index][i].valid) {
                                 preFetchWayToRemove = i;
                                 break;
                             }
                         }
-
+                        //if none invalid, kick out least recently used
                         if (preFetchWayToRemove == -1) {
                             preFetchWayToRemove = l2_lru[preFetchL2Index].back();
                             if (cache_l2[preFetchL2Index][preFetchWayToRemove].isPreFetch) {
