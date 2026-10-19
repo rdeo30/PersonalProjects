@@ -430,50 +430,29 @@ int main(void) {
     char outStr[17], filename[32];
     FILE *fp;
 
-    /* 1. Read 5 sets of keys (3 keys per set = 15 keys total) from keys.txt */
+    //Read 5 sets of keys (3 keys per set so 15 keys total)
     fp = fopen("keys.txt", "r");
-    if (!fp) {
-        printf("Error: Could not open keys.txt\n");
-        return 1;
-    }
+
     for (int s = 0; s < 5; s++) {
         for (int k = 0; k < 3; k++) {
-            if (fscanf(fp, "%16s", keyStr) != 1) {
-                printf("Error: Incomplete keys.txt (expected 15 keys across 5 sets)\n");
-                fclose(fp);
-                return 1;
-            }
             stringToByteArray(keyStr, keyBytes);
             des_key(&dc[s][k], keyBytes);
         }
     }
     fclose(fp);
 
-    /* 2. Read 5 plaintext blocks from plaintextin.txt */
+    //read plaintext blocks
     fp = fopen("plaintextin.txt", "r");
-    if (!fp) {
-        printf("Error: Could not open plaintextin.txt\n");
-        return 1;
-    }
     for (int i = 0; i < 5; i++) {
-        if (fscanf(fp, "%16s", ptStr) != 1) {
-            printf("Error reading plaintextin.txt at line %d\n", i + 1);
-            fclose(fp);
-            return 1;
-        }
         stringToByteArray(ptStr, pt[i]);
     }
     fclose(fp);
 
-    /* 3. Encrypt: 5 sets * 5 plaintexts = 25 outputs into ciphertextout1.txt ... ciphertextout5.txt */
-    printf("=== Starting Triple DES Encryption ===\n");
+    //encrypt 25 outputs into ciphertextoutn.txt
+    //tripe DES encryption
     for (int s = 0; s < 5; s++) {
         sprintf(filename, "ciphertextout%d.txt", s + 1);
         fp = fopen(filename, "w");
-        if (!fp) {
-            printf("Error: Could not create %s\n", filename);
-            return 1;
-        }
 
         printf("Set %d Encryption:\n", s + 1);
         for (int p = 0; p < 5; p++) {
@@ -484,13 +463,12 @@ int main(void) {
             triple_des_enc(&dc[s][0], &dc[s][1], &dc[s][2], tempBlock);
             byteArrayToString(tempBlock, outStr);
             fprintf(fp, "%s\n", outStr);
-            printf("  PT[%d] -> CT: %s\n", p + 1, outStr);
         }
         fclose(fp);
     }
-    printf("Encryption complete. Generated ciphertextout1.txt through ciphertextout5.txt\n\n");
+    printf("encryption done\n");
 
-    /* 4. Read 5 ciphertext test cases from ciphertextin.txt */
+    //Read test cases from ciphertextin.txt
     fp = fopen("ciphertextin.txt", "r");
     if (!fp) {
         printf("ciphertext.in next\n");
@@ -501,15 +479,10 @@ int main(void) {
     }
     fclose(fp);
 
-    /* 5. Decrypt: 5 sets * 5 ciphertexts = 25 outputs into plaintextout1.txt ... plaintextout5.txt */
-    printf("=== Starting Triple DES Decryption ===\n");
+    //decrypt 25 outputs into plaintextoutn.txt
     for (int s = 0; s < 5; s++) {
         sprintf(filename, "plaintextout%d.txt", s + 1);
         fp = fopen(filename, "w");
-        if (!fp) {
-            printf("Error: Could not create %s\n", filename);
-            return 1;
-        }
 
         printf("Set %d Decryption:\n", s + 1);
         for (int c = 0; c < 5; c++) {
@@ -520,11 +493,9 @@ int main(void) {
             triple_des_dec(&dc[s][0], &dc[s][1], &dc[s][2], tempBlock);
             byteArrayToString(tempBlock, outStr);
             fprintf(fp, "%s\n", outStr);
-            printf("  CT[%d] -> PT: %s\n", c + 1, outStr);
         }
         fclose(fp);
     }
-    printf("Decryption complete. Generated plaintextout1.txt through plaintextout5.txt\n");
 
     return 0;
 }
