@@ -427,16 +427,16 @@ int main(void) {
     unsigned char pt[5][8];
     unsigned char ctIn[5][8];
     unsigned char tempBlock[8];
-    char outStr[17], filename[32];
+    char outStr[17], filename[25];
     FILE *fp;
 
     //Read 5 sets of keys (3 keys per set so 15 keys total)
     fp = fopen("keys.txt", "r");
 
-    for (int s = 0; s < 5; s++) {
-        for (int k = 0; k < 3; k++) {
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 3; j++) {
             stringToByteArray(keyStr, keyBytes);
-            des_key(&dc[s][k], keyBytes);
+            des_key(&dc[i][j], keyBytes);
         }
     }
     fclose(fp);
@@ -450,17 +450,16 @@ int main(void) {
 
     //encrypt 25 outputs into ciphertextoutn.txt
     //tripe DES encryption
-    for (int s = 0; s < 5; s++) {
-        sprintf(filename, "ciphertextout%d.txt", s + 1);
+    for (int i = 0; i < 5; i++) {
+        sprintf(filename, "ciphertextout%d.txt", i + 1);
         fp = fopen(filename, "w");
 
-        printf("Set %d Encryption:\n", s + 1);
-        for (int p = 0; p < 5; p++) {
-            for (int b = 0; b < 8; b++) {
-                tempBlock[b] = pt[p][b];
+        for (int j = 0; j < 5; j++) {
+            for (int k = 0; k < 8; k++) {
+                tempBlock[k] = pt[j][k];
             }
 
-            triple_des_enc(&dc[s][0], &dc[s][1], &dc[s][2], tempBlock);
+            triple_des_enc(&dc[i][0], &dc[i][1], &dc[i][2], tempBlock);
             byteArrayToString(tempBlock, outStr);
             fprintf(fp, "%s\n", outStr);
         }
@@ -480,17 +479,17 @@ int main(void) {
     fclose(fp);
 
     //decrypt 25 outputs into plaintextoutn.txt
-    for (int s = 0; s < 5; s++) {
-        sprintf(filename, "plaintextout%d.txt", s + 1);
+    for (int i = 0; i < 5; i++) {
+        sprintf(filename, "plaintextout%d.txt", i + 1);
         fp = fopen(filename, "w");
 
-        printf("Set %d Decryption:\n", s + 1);
+        printf("Set %d Decryption:\n", i + 1);
         for (int c = 0; c < 5; c++) {
             for (int b = 0; b < 8; b++) {
                 tempBlock[b] = ctIn[c][b];
             }
 
-            triple_des_dec(&dc[s][0], &dc[s][1], &dc[s][2], tempBlock);
+            triple_des_dec(&dc[i][0], &dc[i][1], &dc[i][2], tempBlock);
             byteArrayToString(tempBlock, outStr);
             fprintf(fp, "%s\n", outStr);
         }
